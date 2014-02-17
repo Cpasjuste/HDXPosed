@@ -1,0 +1,1 @@
+Various tweeks for the Kindle Fire HDX devices
