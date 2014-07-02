@@ -55,4 +55,24 @@ local.properties
 # PDT-specific
 .buildpath
 
+######################
+#### C/C++ Native ####
+######################
+# Compiled Object files
+obj/
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+# gedit temp files
+*.*~
+
 

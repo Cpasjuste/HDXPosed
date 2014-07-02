@@ -5,6 +5,7 @@ import static de.robv.android.xposed.XposedHelpers.*;
 import java.lang.reflect.Method;
 
 import android.content.ContentValues;
+import android.content.Intent;
 import android.content.res.XResources;
 import android.net.Uri;
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -82,27 +83,69 @@ public class Main implements IXposedHookLoadPackage, IXposedHookZygoteInit
         {
         	log( t );
         }
+        
+        // ota update WIP
+        try
+		{
+        	final Class<?> cls = findClass( "android.os.SystemProperties", null );
+    		final Method m = findMethodExact( cls, "get", String.class, String.class );
+    		XposedBridge.hookMethod( m, new XC_MethodHook()
+    		{
+    			@Override
+    			protected void afterHookedMethod( MethodHookParam param ) throws Throwable 
+    			{
+    				String key = (String)param.args[0];
+    				if( key != null 
+    						&& !key.isEmpty() )
+    				{
+    					if( key.equals( "ro.build.version.number" ) )
+    					{
+    						log( "ro.build.version.number hook" );
+    						param.setResult( "900000000" );
+    					}
+    				}
+    			}
+    		});
+    		log( cls.getName()+"."+m.getName()+" hooked" );
+		}
+    	catch ( Throwable t ) 
+    	{
+    		log( t );
+    	}
+        
+        // ota update WIP
+        try
+		{
+        	final Class<?> cls = findClass( "android.content.ContextWrapper", null );
+    		final Method m = findMethodExact( cls, "startService", Intent.class );
+    		XposedBridge.hookMethod( m, new XC_MethodHook()
+    		{
+    			@Override
+    			protected void beforeHookedMethod( MethodHookParam param ) throws Throwable 
+    			{
+    				Intent intent = (Intent)param.args[0];
+    				String s = intent.toString();
+    				if( s.contains( "SystemUpdatesService" ) 
+    						|| s.contains( "OTAService" ) 
+    						|| s.contains( "ota.ScheduledUpdateCheckerService" ) )
+    				{
+    					log( "startService hook: " + s );
+    					param.args[0] = null;
+    					param.setResult( null );
+    				}
+    			}
+    		});
+    		log( cls.getName()+"."+m.getName()+" hooked" );
+		}
+    	catch ( Throwable t ) 
+    	{
+    		log( t );
+    	}
 	}
 	
 	@Override
 	public void handleLoadPackage( final LoadPackageParam lpparam ) throws Throwable 
     {
-		// prevent ota update
-		if( lpparam.packageName.equals( "com.android.settings" ) )
-    	{
-	        try
-			{
-	        	final Class<?> cls = findClass( "com.android.settings.services.SystemUpdatesService", lpparam.classLoader );
-	    		Method m = findMethodBestMatch( cls, "initOTAController" );
-	    		XposedBridge.hookMethod( m, XC_MethodReplacement.DO_NOTHING );
-	    		log( cls.getName()+"."+m.getName()+" hooked" );  
-			}
-	    	catch ( Throwable t ) 
-	    	{
-	    		log( t );
-	    	}
-    	}
-		
 		// DownloadProvider fix (play store, gmail... downloads)
         // Prevent any call to DownloadProvider.checkInsertPermissions
 		if( lpparam.packageName.equals( "com.android.providers.downloads" ) )
