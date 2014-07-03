@@ -5,7 +5,7 @@ import static de.robv.android.xposed.XposedHelpers.*;
 import java.lang.reflect.Method;
 
 import android.content.ContentValues;
-import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.XResources;
 import android.net.Uri;
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -13,6 +13,7 @@ import de.robv.android.xposed.IXposedHookZygoteInit;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 public class Main implements IXposedHookLoadPackage, IXposedHookZygoteInit
@@ -83,59 +84,32 @@ public class Main implements IXposedHookLoadPackage, IXposedHookZygoteInit
         {
         	log( t );
         }
-        
+
         // ota update WIP
         try
 		{
-        	final Class<?> cls = findClass( "android.os.SystemProperties", null );
-    		final Method m = findMethodExact( cls, "get", String.class, String.class );
-    		XposedBridge.hookMethod( m, new XC_MethodHook()
+        	final Class<?> cls = findClass( "com.android.server.pm.PackageManagerService", null );
+        	XposedBridge.hookAllConstructors( cls, new XC_MethodHook()
     		{
     			@Override
     			protected void afterHookedMethod( MethodHookParam param ) throws Throwable 
     			{
-    				String key = (String)param.args[0];
-    				if( key != null 
-    						&& !key.isEmpty() )
-    				{
-    					if( key.equals( "ro.build.version.number" ) )
-    					{
-    						log( "ro.build.version.number hook" );
-    						param.setResult( "900000000" );
-    					}
-    				}
+    				Object settings = XposedHelpers.getObjectField( param.thisObject, "mSettings" );
+    				Object packages = XposedHelpers.getObjectField( settings, "mPackages" );
+    				
+    				String[] components = new String[] { 
+    	        			"com.amazon.dcp", 
+    	        			"com.amazon.dcp.contracts.library",
+    	        			"com.amazon.dcp.contracts.framework.library" };
+    				
+    	        	for( String cpName : components )
+    	        	{
+    	        		Object pkgSetting = XposedHelpers.callMethod( packages, "get", cpName );
+    	        		XposedHelpers.callMethod( pkgSetting, "setEnabled", PackageManager.COMPONENT_ENABLED_STATE_DISABLED, 0 );
+    	        	}
+    	    		log( "OTA updates hooked" );
     			}
     		});
-    		log( cls.getName()+"."+m.getName()+" hooked" );
-		}
-    	catch ( Throwable t ) 
-    	{
-    		log( t );
-    	}
-        
-        // ota update WIP
-        try
-		{
-        	final Class<?> cls = findClass( "android.content.ContextWrapper", null );
-    		final Method m = findMethodExact( cls, "startService", Intent.class );
-    		XposedBridge.hookMethod( m, new XC_MethodHook()
-    		{
-    			@Override
-    			protected void beforeHookedMethod( MethodHookParam param ) throws Throwable 
-    			{
-    				Intent intent = (Intent)param.args[0];
-    				String s = intent.toString();
-    				if( s.contains( "SystemUpdatesService" ) 
-    						|| s.contains( "OTAService" ) 
-    						|| s.contains( "ota.ScheduledUpdateCheckerService" ) )
-    				{
-    					log( "startService hook: " + s );
-    					param.args[0] = null;
-    					param.setResult( null );
-    				}
-    			}
-    		});
-    		log( cls.getName()+"."+m.getName()+" hooked" );
 		}
     	catch ( Throwable t ) 
     	{
