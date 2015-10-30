@@ -4,6 +4,7 @@ import static de.robv.android.xposed.XposedHelpers.*;
 
 import java.lang.reflect.Method;
 
+import android.content.Context;
 import android.content.ContentValues;
 import android.content.pm.PackageManager;
 import android.content.res.XResources;
@@ -115,6 +116,23 @@ public class Main implements IXposedHookLoadPackage, IXposedHookZygoteInit
     	{
     		log( t );
     	}
+    	
+        // setProfileManager
+        try {
+            final Class<?> cls = findClass("android.content.ContextWrapper", null);
+            final Method m = findMethodExact(cls, "setProfileManager", Context.class);
+
+            XposedBridge.hookMethod(m, new XC_MethodReplacement() {
+                @Override
+                protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                    return null;
+                }
+            });
+
+            log(cls.getName() + "." + m.getName() + " hooked");
+        } catch (Throwable t) {
+            log(t);
+        }
 	}
 	
 	@Override
